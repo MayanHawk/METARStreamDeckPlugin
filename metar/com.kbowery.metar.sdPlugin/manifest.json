@@ -1,0 +1,46 @@
+{
+    "Name": "METAR Display",
+    "Version": "0.1.0.0",
+    "Author": "kBowery",
+    "Description": "Displays current aviation METAR weather and copies raw METAR reports to the Windows clipboard.",
+    "Category": "METAR Display",
+    "CategoryIcon": "imgs/plugin/category-icon",
+    "Icon": "imgs/plugin/marketplace",
+    "UUID": "com.kbowery.metar",
+    "CodePath": "bin/plugin.js",
+    "SDKVersion": 3,
+    "Software": {
+        "MinimumVersion": "7.1"
+    },
+    "OS": [
+        {
+            "Platform": "windows",
+            "MinimumVersion": "10"
+        },
+        {
+            "Platform": "mac",
+            "MinimumVersion": "12"
+        }
+    ],
+    "Nodejs": {
+        "Version": "24"
+    },
+    "Actions": [
+        {
+            "Name": "METAR Display",
+            "UUID": "com.kbowery.metar.display",
+            "Icon": "imgs/actions/metar/icon",
+            "Tooltip": "Displays the current METAR. Short press copies it; long press refreshes and copies it.",
+            "PropertyInspectorPath": "ui/metar-settings.html",
+            "Controllers": [
+                "Keypad"
+            ],
+            "States": [
+                {
+                    "Image": "imgs/actions/metar/key",
+                    "TitleAlignment": "middle"
+                }
+            ]
+        }
+    ]
+}
