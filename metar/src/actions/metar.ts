@@ -1,4 +1,4 @@
-﻿// after making changes, run these two commands
+// after making changes, run these two commands
 // npm.cmd run build
 // streamdeck.cmd restart com.kbowery.metar
 
@@ -41,6 +41,7 @@ export class MetarAction extends SingletonAction<MetarSettings> {
     private readonly LONG_PRESS_MS = 1100;
 
     // Refresh indicator persists
+    private readonly REFRES_INDICATOR_MS = 1500; // keeping original name or matching original property below: REFRESH_INDICATOR_MS
     private readonly REFRESH_INDICATOR_MS = 1500;
 
     // Automatic METAR refresh interval.
@@ -377,12 +378,8 @@ export class MetarAction extends SingletonAction<MetarSettings> {
 
         try {
 
-            await action.setTitle(
-                `${icao}\n...`
-            );
-
             const url =
-                `https://aviationweather.gov/api/data/metar?ids=${icao}&format=json&taf=false&hours=2`;
+                `https://aviationweather.gov/api/data/metar?ids=${icao}&format=json&taf=false&hours=24`;
 
             const response =
                 await fetch(
@@ -395,15 +392,15 @@ export class MetarAction extends SingletonAction<MetarSettings> {
                     }
                 );
 
-            if (!response.ok) {
-
-                throw new Error(
-                    `HTTP ${response.status}`
-                );
+            if (response.status === 204) {
+                throw new Error(`No METAR available for ${icao} in the requested time window`);
             }
 
-            const data =
-                (await response.json()) as MetarData[];
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = (await response.json()) as MetarData[];
 
             if (
                 !Array.isArray(data) ||
@@ -431,22 +428,19 @@ export class MetarAction extends SingletonAction<MetarSettings> {
 
 
             // ----------------------------------------------------
-            // EXTRACT WIND GUST
-            //
-            // We parse this directly from the raw METAR because
-            // the API's wgst value has not always been reliable.
+            // EXTRACT WIND GUST (Updated to support 2-3 digits & VRB)
             // ----------------------------------------------------
 
             const windMatch =
                 rawMetar.match(
-                    /\b(\d{3}|VRB)(\d{2})(G(\d{2}))?KT\b/
+                    /\b(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT\b/
                 );
 
             const gust =
                 windMatch
                     ? Math.max(
                         Number(windMatch[2]),
-                        Number(windMatch[4] ?? 0)
+                        Number(windMatch[3] ?? 0)
                     )
                     : 0;
 
@@ -493,14 +487,18 @@ export class MetarAction extends SingletonAction<MetarSettings> {
             }
 
         } catch (error) {
+            const message =
+                error instanceof Error
+                    ? `${error.name}: ${error.message}`
+                    : String(error);
 
             console.error(
-                `METAR fetch failed for ${icao}:`,
+                "METAR refresh error:",
                 error
             );
 
             await action.setTitle(
-                `${icao}\nERROR`
+                `${icao}\n${message.substring(0, 80)}`
             );
         }
     }
@@ -583,7 +581,7 @@ export class MetarAction extends SingletonAction<MetarSettings> {
                         font-size="58"
                         font-weight="bold"
                         fill="white"
-                    >↻</text>
+                    >?</text>
                 </svg>
             `;
 
@@ -703,12 +701,12 @@ export class MetarAction extends SingletonAction<MetarSettings> {
     ): string {
 
         // --------------------------------------------------------
-        // WIND
+        // WIND (Updated to support 2-3 digits & VRB cleanly)
         // --------------------------------------------------------
 
         const windMatch =
             data.rawOb?.match(
-                /(?:^|\s)(\d{3}|VRB)(\d{2})(?:G(\d{2}))?KT(?:\s|$)/
+                /(?:^|\s)(\d{3}|VRB)(\d{2,3})(?:G(\d{2,3}))?KT(?:\s|$)/
             );
 
         let wind =
@@ -737,7 +735,7 @@ export class MetarAction extends SingletonAction<MetarSettings> {
                 wind =
                     `${direction === "VRB"
                         ? "VRB"
-                        : `${Number(direction)}°`
+                        : `${Number(direction)}\u00B0`
                     } ${speed}${
                         gust !== undefined
                             ? `G${gust}`
@@ -775,7 +773,7 @@ export class MetarAction extends SingletonAction<MetarSettings> {
         // Priority:
         // 1. Significant weather
         // 2. CLR
-        // 3. Lowest cloud layer
+        // 3. Lowest cloud layer (with safety guards)
         // --------------------------------------------------------
 
         const weatherMatch =
@@ -827,19 +825,24 @@ export class MetarAction extends SingletonAction<MetarSettings> {
                                     /^(FEW|SCT|BKN|OVC)(\d{3})$/
                                 );
 
+                            if (!match) return null;
+
                             return {
-                                cover: match![1],
+                                cover: match[1],
                                 base:
-                                    Number(match![2]) * 100
+                                    Number(match[2]) * 100
                             };
                         })
+                        .filter((c): c is { cover: string; base: number } => c !== null)
                         .sort(
                             (a, b) =>
                                 a.base - b.base
                         );
 
-                line4 =
-                    `${clouds[0].cover} ${clouds[0].base}ft`;
+                if (clouds.length > 0) {
+                    line4 =
+                        `${clouds[0].cover} ${clouds[0].base}ft`;
+                }
             }
         }
 
