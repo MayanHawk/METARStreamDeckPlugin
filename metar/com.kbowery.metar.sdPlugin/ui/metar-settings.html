@@ -15,7 +15,8 @@
         }
 
         .hint {
-            margin-top: 8px;
+            margin-top: 4px;
+            margin-bottom: 12px;
             font-size: 12px;
             color: #999;
         }
@@ -37,6 +38,32 @@
         Enter a 4-character ICAO airport/station code.
     </div>
 
+    <sdpi-item label="Long Press (ms)">
+        <sdpi-range
+            setting="longPressMs"
+            min="500"
+            max="3000"
+            step="100"
+            default="1100"
+            showlabels>
+            <span slot="min">500</span>
+            <span slot="max">3000</span>
+        </sdpi-range>
+    </sdpi-item>
+
+    <sdpi-item label="Refresh (min)">
+        <sdpi-textfield
+            id="refreshMinutes"
+            setting="refreshMinutes"
+            placeholder="5"
+            default="5">
+        </sdpi-textfield>
+    </sdpi-item>
+
+    <div class="hint">
+        Auto-refresh interval in minutes (minimum 1).
+    </div>
+
     <script>
         const icao = document.getElementById("icao");
 
@@ -45,6 +72,12 @@
                 .toUpperCase()
                 .replace(/[^A-Z0-9]/g, "")
                 .substring(0, 4);
+        });
+
+        const refreshMinutes = document.getElementById("refreshMinutes");
+
+        refreshMinutes.addEventListener("input", () => {
+            refreshMinutes.value = refreshMinutes.value.replace(/[^0-9]/g, "");
         });
     </script>
 
